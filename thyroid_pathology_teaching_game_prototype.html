@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Thyroid Pathology — Decision Tree with Negative Marking</title>
+<title>Thyroid Pathology — Case-based Decision Tree</title>
 <style>
   :root{--bg:#0f1724;--card:#0b1220;--accent:#38bdf8;--muted:#94a3b8}
   body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#071124 0%, #081627 60%);color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -25,7 +25,8 @@
   button{background:var(--accent);border:none;padding:8px 12px;border-radius:8px;color:#04263a;font-weight:700;cursor:pointer}
   .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.04);color:var(--muted)}
   .trace{max-height:240px;overflow:auto;padding:8px}
-  .score{font-size:18px;font-weight:700;margin-bottom:8px}
+  .export{margin-top:8px}
+  @media (max-width:880px){.layout{grid-template-columns:1fr}} 
 </style>
 </head>
 <body>
@@ -33,18 +34,18 @@
   <header>
     <div class="logo">T</div>
     <div>
-      <h1>Thyroid Pathology — Decision Tree (Negative Marking)</h1>
-      <div class="meta">เลือกการตัดสินใจแต่ละขั้นตอน คะแนนอาจลดลงถ้าตอบผิด/ไม่เหมาะสม</div>
+      <h1>Thyroid Pathology — Case Decision Tree (Prototype)</h1>
+      <div class="meta">เลือกการตัดสินใจในแต่ละขั้นตอน เพื่อติดตามเส้นทางการวินิจฉัยและเหตุผล</div>
     </div>
   </header>
 
   <div class="card layout">
     <main>
       <div id="nodeArea"></div>
-      <div class="score">คะแนนรวม: <span id="scoreDisplay">0</span></div>
       <div class="controls">
         <button id="backBtn" class="btn-ghost">ย้อนกลับ</button>
         <button id="resetBtn">เริ่มใหม่</button>
+        <button id="exportBtn" class="btn-ghost">Export path</button>
       </div>
     </main>
 
@@ -58,13 +59,22 @@
       <div class="card panel">
         <div style="font-weight:700">Decision path</div>
         <div class="trace" id="trace"></div>
+        <div class="export"><small class="meta">Exported JSON จะรวมคำตอบและเหตุผล</small></div>
+      </div>
+
+      <div class="card panel">
+        <div style="font-weight:700">Tips for instructors</div>
+        <ul class="meta">
+          <li>ปรับแต่ละ node เพื่อฝึกการใช้ FNA, IHC, molecular test</li>
+          <li>กำหนด scoring หรือ feedback ตามเส้นทาง</li>
+        </ul>
       </div>
     </aside>
   </div>
 </div>
 
 <script>
-// Decision tree with negative marking
+// Simple decision-tree prototype
 const cases = [
   {
     id:0,
@@ -72,29 +82,44 @@ const cases = [
     meta:'Clinical: solitary, non-tender; Ultrasound: 2.2 cm hypoechoic nodule',
     tree: {
       id:'start',
-      text:'คุณจะทำอะไรเป็นขั้นแรก?',
+      text:'คุณจะทำอะไรเป็นขั้นแรก? (เลือกหนึ่งข้อ)',
       choices:[
-        {text:'FNA', next:'fna', points:10},
-        {text:'Follow-up ultrasound', next:'obs', points:-5},
-        {text:'TFTs', next:'tft', points:-2}
+        {text:'จัดการ FNA (fine-needle aspiration)', next:'fna'},
+        {text:'สังเกต follow-up ultrasound', next:'obs'},
+        {text:'ส่งตรวจ thyroid function test (TFTs)', next:'tft'}
       ]
     },
     nodes: {
       fna:{
         id:'fna',
-        text:'FNA ผลเป็น Bethesda V. ขั้นตอนต่อไป?',
+        text:'FNA ผลเป็น: Bethesda V (suspicious for malignancy). ขั้นตอนต่อไป?',
         choices:[
-          {text:'Lobectomy', next:'surgery', points:10},
-          {text:'Molecular testing', next:'molecular', points:5},
-          {text:'Repeat FNA', next:'repeat_fna', points:-5}
+          {text:'ส่งผ่าตัดทำ lobectomy เพื่อวินิจฉัยและรักษา', next:'surgery'},
+          {text:'ขอ IHC / molecular testing', next:'molecular'},
+          {text:'ทำ repeat FNA', next:'repeat_fna'}
         ]
       },
-      obs:{id:'obs', text:'Follow-up พบ nodal enlargement. ทำต่อ?', choices:[{text:'FNA', next:'fna', points:5},{text:'Surgery', next:'surgery', points:10}]},
-      tft:{id:'tft', text:'TFTs ปกติ. ทำอะไรต่อ?', choices:[{text:'FNA', next:'fna', points:10},{text:'ติดตาม 6 เดือน', next:'obs', points:-2}]},
-      repeat_fna:{id:'repeat_fna', text:'Repeat FNA กลายเป็น Bethesda III', choices:[{text:'Molecular testing', next:'molecular', points:5},{text:'Lobectomy', next:'surgery', points:10}]},
-      molecular:{id:'molecular', text:'BRAF V600E พบ — แนะนำการรักษา?', choices:[{text:'Total thyroidectomy + RAI', next:'final', points:10},{text:'Follow-up', next:'final', points:-5}]},
-      surgery:{id:'surgery', text:'Histology: Papillary carcinoma — การวางแผนต่อ?', choices:[{text:'Total thyroidectomy + RAI', next:'final', points:10},{text:'Lobectomy + follow-up', next:'final', points:5}]},
-      final:{id:'final', text:'เส้นทางสิ้นสุด — สรุปผลการรักษา', choices:[]}
+      obs:{id:'obs',text:'ผู้ป่วยเลือกสังเกต พบขนาดเพิ่มขึ้นใน 6 เดือน — ทำอะไรต่อ?',choices:[{text:'FNA',next:'fna'},{text:'ผ่าตัด',next:'surgery'}]},
+      tft:{id:'tft',text:'TFTs ปกติ — แต่ nodal suspicion ยังคงอยู่. ทำอะไรต่อ?',choices:[{text:'FNA',next:'fna'},{text:'ติดตาม 6 เดือน',next:'obs'}]},
+      repeat_fna:{id:'repeat_fna',text:'Repeat FNA กลายเป็น Bethesda III. ทำต่ออย่างไร?',choices:[{text:'Molecular testing',next:'molecular'},{text:'ผ่าตัด diagnostic lobectomy',next:'surgery'}]},
+      molecular:{id:'molecular',text:'การตรวจ THY mutation panel พบ BRAF V600E — แนะนำอย่างไร?',choices:[{text:'แนะนำผ่าตัด definitive (total thyroidectomy/ lobectomy ตามขนาด)',next:'surgery_braf'},{text:'ให้ follow-up',next:'obs'}]},
+      surgery:{id:'surgery',text:'ผล histology: papillary thyroid carcinoma — การวางแผนต่อ?',choices:[{text:'ทำ total thyroidectomy + radioiodine ตามความจำเป็น',next:'final'},{text:'lobectomy และติดตาม',next:'final'}]},
+      surgery_braf:{id:'surgery_braf',text:'BRAF+ papillary carcinoma on resection — ให้คำแนะนำการรักษา/การติดตาม',choices:[{text:'total thyroidectomy + consider RAI',next:'final'},{text:'lobectomy และติดตาม',next:'final'}]},
+      final:{id:'final',text:'เส้นทางสิ้นสุด — สรุปผลการรักษาและคำอธิบาย',choices:[]}
+    }
+  },
+  {
+    id:1,
+    title:'Case 2: 67-year-old man with rapidly growing neck mass',
+    meta:'Clinical: rapid enlargement over 2 months, dyspnea',
+    tree:{id:'start',text:'เริ่มจากอะไร?',choices:[{text:'urgent imaging (CT)',next:'ct'},{text:'FNA',next:'fna2'},{text:'start steroids (suspect thyroid storm/thyroiditis)',next:'steroids'}]},
+    nodes:{
+      ct:{id:'ct',text:'CT พบ infiltrative mass with tracheal compression. ทำอะไรต่อ?',choices:[{text:'emergency surgical biopsy',next:'biopsy'},{text:'สถานการณ์พิจารณา chemo/radiation',next:'oncology'}]},
+      fna2:{id:'fna2',text:'FNA พบ pleomorphic giant cells—คิดถึงอะไร?',choices:[{text:'Anaplastic carcinoma — ให้แผนการรักษา paliative/oncology',next:'final'},{text:'ทำ core biopsy เพื่อยืนยัน',next:'biopsy'}]},
+      steroids:{id:'steroids',text:'ให้สเตียรอยด์แล้วไม่ดีขึ้น — ทำต่ออย่างไร?',choices:[{text:'imaging + biopsy',next:'ct'}]},
+      biopsy:{id:'biopsy',text:'Core biopsy ยืนยัน anaplastic carcinoma — เส้นทางการจัดการ',choices:[{text:'multidisciplinary palliative approach',next:'final'},{text:'aggressive resection if feasible',next:'final'}]},
+      oncology:{id:'oncology',text:'ส่งต่อ oncology — พิจารณา chemoradiation/palliative care',choices:[]},
+      final:{id:'final',text:'เส้นทางสิ้นสุด — สรุปการรักษาและคำอธิบาย',choices:[]}
     }
   }
 ];
@@ -102,19 +127,16 @@ const cases = [
 let currentCase = cases[0];
 let currentNode = null;
 let path = [];
-let score = 0;
 
 const nodeArea = document.getElementById('nodeArea');
 const caseTitle = document.getElementById('caseTitle');
 const caseMeta = document.getElementById('caseMeta');
 const traceEl = document.getElementById('trace');
-const scoreDisplay = document.getElementById('scoreDisplay');
 
 function loadCase(idx=0){
   currentCase = cases[idx];
   currentNode = currentCase.tree;
-  path = [{node:currentNode.id, action:null, points:0}];
-  score = 0;
+  path = [{node:currentNode.id, action:null, note:'case start'}];
   render();
 }
 
@@ -123,41 +145,81 @@ function render(){
   caseMeta.textContent = currentCase.meta;
   nodeArea.innerHTML = '';
 
-  const nodeCard = document.createElement('div');
-  nodeCard.className='card node';
-  const q = document.createElement('div'); q.className='question'; q.textContent=currentNode.text;
-  nodeCard.appendChild(q);
+  const nodeCard=document.createElement('div');nodeCard.className='card node';
+  const q=document.createElement('div');q.className='question';q.textContent=currentNode.text;nodeCard.appendChild(q);
+  const opts=document.createElement('div');opts.className='opts';
 
-  const opts = document.createElement('div'); opts.className='opts';
-  const choices = (currentCase.nodes && currentCase.nodes[currentNode.id]) ? currentCase.nodes[currentNode.id].choices : currentNode.choices;
-
-  if(choices && choices.length>0){
-    choices.forEach(c=>{
-      const b = document.createElement('div'); b.className='opt small'; b.textContent=c.text;
-      b.addEventListener('click',()=>choose(c));
-      opts.appendChild(b);
+  if((currentCase.nodes && currentCase.nodes[currentNode.id] && currentCase.nodes[currentNode.id].choices && currentCase.nodes[currentNode.id].choices.length>0) || (currentNode.choices && currentNode.choices.length>0)){
+    const choices = (currentCase.nodes && currentCase.nodes[currentNode.id] ? currentCase.nodes[currentNode.id].choices : currentNode.choices);
+    choices.forEach((c,i)=>{
+      const b=document.createElement('div');b.className='opt small';b.textContent=(i+1)+'. '+c.text;b.addEventListener('click',()=>choose(c));opts.appendChild(b);
     });
   }else{
-    const end = document.createElement('div'); end.className='opt'; end.textContent='(จบบท)'; opts.appendChild(end);
+    const end=document.createElement('div');end.className='opt';end.textContent='(จบบท) — ดูสรุปใน Decision path';opts.appendChild(end);
   }
   nodeCard.appendChild(opts);
   nodeArea.appendChild(nodeCard);
-
   renderTrace();
-  scoreDisplay.textContent = score;
 }
 
 function choose(choice){
-  score += choice.points;
-  path.push({node:choice.next, action:choice.text, points:choice.points});
+  // find next node definition
+  const nextId = choice.next;
+  const note = choice.text;
+  path.push({node:nextId, action:note});
+  // check if next is defined in nodes
   const nodes = currentCase.nodes;
-  if(nodes && nodes[choice.next]){
-    currentNode = nodes[choice.next];
+  if(nodes && nodes[nextId]){
+    currentNode = nodes[nextId];
   }else{
-    currentNode = {id:choice.next, text:'(Node not found)', choices:[]};
+    // if nextId corresponds to another case-level tree root
+    currentNode = {id:nextId,text:'(Node not found)'};
   }
   render();
 }
 
 function renderTrace(){
   traceEl.innerHTML='';
+  path.forEach((p,i)=>{
+    const div=document.createElement('div');div.className='path';div.style.marginBottom='6px';
+    div.textContent = (i+1)+'. '+p.node + (p.action? ' — '+p.action:'');
+    traceEl.appendChild(div);
+  });
+}
+
+// back / reset / export
+document.getElementById('backBtn').addEventListener('click',()=>{
+  if(path.length<=1) return;
+  path.pop();
+  const prev = path[path.length-1];
+  // find node data for prev
+  const nodes = currentCase.nodes;
+  if(prev.node && (nodes && nodes[prev.node])){
+    currentNode = nodes[prev.node];
+  }else if(prev.node==='start'){
+    currentNode = currentCase.tree;
+  }else{
+    currentNode = {id:prev.node,text:'(Node)'};
+  }
+  render();
+});
+
+document.getElementById('resetBtn').addEventListener('click',()=>loadCase(0));
+
+document.getElementById('exportBtn').addEventListener('click',()=>{
+  const out = {case:currentCase.title,meta:currentCase.meta,path:path};
+  const blob = new Blob([JSON.stringify(out, null, 2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='decision_path.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+});
+
+// small UI to switch cases by clicking case title
+caseTitle.addEventListener('click',()=>{
+  const idx = (currentCase.id + 1) % cases.length; loadCase(idx);
+});
+
+// init
+loadCase(0);
+</script>
+</body>
+</html>
